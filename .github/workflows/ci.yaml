@@ -4,10 +4,7 @@ defaults:
   run:
     shell: bash
 jobs:
-  check:
-    uses: ./.github/workflows/check.yaml
-
-  vars:
+  init:
     runs-on: ubuntu-22.04
     outputs:
       gcovr-version: ${{ steps.vars.outputs.gcovr-version }}
@@ -15,24 +12,26 @@ jobs:
       - id: vars
         run: |
           echo "gcovr-version=7.2" >> "${GITHUB_OUTPUT}"
-        shell: bash
+
+  check:
+    uses: ./.github/workflows/check.yaml
 
   build:
     needs:
       - check
-      - vars
+      - init
     uses: ./.github/workflows/build.yaml
     with:
-      gcovr-version: ${{ needs.vars.outputs.gcovr-version }}
+      gcovr-version: ${{ needs.init.outputs.gcovr-version }}
 
   build-pr:
     if: github.event_name == 'pull_request'
     needs:
       - check
-      - vars
+      - init
     uses: ./.github/workflows/build.yaml
     with:
-      gcovr-version: ${{ needs.vars.outputs.gcovr-version }}
+      gcovr-version: ${{ needs.init.outputs.gcovr-version }}
       pr: true
 
   merge-package-artifacts:
@@ -50,7 +49,7 @@ jobs:
   generate-coverage-report:
     needs:
       - build
-      - vars
+      - init
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
@@ -65,7 +64,7 @@ jobs:
           python3-pip
 
       - name: Install gcovr
-        run: pip install "gcovr==${{ needs.vars.outputs.gcovr-version }}"
+        run: pip install "gcovr==${{ needs.init.outputs.gcovr-version }}"
 
       - name: Merge test coverage artifacts
         uses: actions/upload-artifact/merge@v4
